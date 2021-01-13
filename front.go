@@ -6,10 +6,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"gopkg.in/yaml.v2"
 	"io"
 	"strings"
-
-	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -45,6 +44,7 @@ func (m *Matter) Handle(delim string, fn HandlerFunc) {
 func (m *Matter) Parse(input io.Reader) (front map[string]interface{}, body string, err error) {
 	return m.parse(input)
 }
+
 func (m *Matter) parse(input io.Reader) (front map[string]interface{}, body string, err error) {
 	var getFront = func(f string) string {
 		return strings.TrimSpace(f[3:])
@@ -63,6 +63,7 @@ func (m *Matter) parse(input io.Reader) (front map[string]interface{}, body stri
 	return front, body, nil
 
 }
+
 func sniffDelim(input []byte) (string, error) {
 	if len(input) < 4 {
 		return "", ErrIsEmpty
@@ -135,12 +136,33 @@ func JSONHandler(front string) (map[string]interface{}, error) {
 	return rst.(map[string]interface{}), nil
 }
 
-//YAMLHandler decodes ymal string into a go map[string]interface{}
+//YAMLHandler decodes yaml string into a go map[string]interface{}
 func YAMLHandler(front string) (map[string]interface{}, error) {
 	out := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(front), out)
 	if err != nil {
 		return nil, err
 	}
+	// clean maps
+	for k, v := range out {
+		out[k] = convert(v)
+	}
 	return out, nil
+}
+
+// convert converts all map[interface{}]interface{} children to map[string]interface{}
+func convert(i interface{}) interface{} {
+	switch x := i.(type) {
+	case map[interface{}]interface{}:
+		m2 := map[string]interface{}{}
+		for k, v := range x {
+			m2[k.(string)] = convert(v)
+		}
+		return m2
+	case []interface{}:
+		for i, v := range x {
+			x[i] = convert(v)
+		}
+	}
+	return i
 }
