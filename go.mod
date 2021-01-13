@@ -1,4 +1,4 @@
-module github.ibm.com/barshociaj/front
+module github.com/barshociaj/front
 
 go 1.13
 
