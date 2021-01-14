@@ -6,8 +6,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"gopkg.in/yaml.v2"
 	"io"
+	"sigs.k8s.io/yaml"
 	"strings"
 )
 
@@ -20,48 +20,55 @@ var (
 	ErrUnknownDelim = errors.New("front: unknown delim")
 )
 
-type (
-	//HandlerFunc is an interface for a function that process front matter text.
-	HandlerFunc func(string) (map[string]interface{}, error)
-)
-
 //Matter is all what matters here.
 type Matter struct {
-	handlers map[string]HandlerFunc
+	Delim string
 }
 
 //NewMatter creates a new Matter instance
-func NewMatter() *Matter {
-	return &Matter{handlers: make(map[string]HandlerFunc)}
-}
-
-//Handle registers a handler for the given frontmatter delimiter
-func (m *Matter) Handle(delim string, fn HandlerFunc) {
-	m.handlers[delim] = fn
-}
-
-// Parse parses the input and extract the frontmatter
-func (m *Matter) Parse(input io.Reader) (front map[string]interface{}, body string, err error) {
-	return m.parse(input)
-}
-
-func (m *Matter) parse(input io.Reader) (front map[string]interface{}, body string, err error) {
-	var getFront = func(f string) string {
-		return strings.TrimSpace(f[3:])
+func NewMatter(delim string) *Matter {
+	return &Matter{
+		Delim: delim,
 	}
+}
+
+// JSONToMap parses the input and extract JSON frontmatter as map[string]interface{}
+func (m *Matter) JSONToMap(input io.Reader) (front map[string]interface{}, body string, err error) {
 	f, body, err := m.splitFront(input)
 	if err != nil {
-		return nil, "", err
-	} else if len(f) < 3 {
-		return map[string]interface{}{}, body, nil
+		return map[string]interface{}{}, body, err
 	}
-	h := m.handlers[f[:3]]
-	front, err = h(getFront(f))
+	front, err = JSONHandler(f)
 	if err != nil {
 		return nil, "", err
 	}
 	return front, body, nil
+}
 
+// YAMLToMap parses the input and extract YAML frontmatter as map[string]interface{}
+func (m *Matter) YAMLToMap(input io.Reader) (front map[string]interface{}, body string, err error) {
+	f, body, err := m.splitFront(input)
+	if err != nil {
+		return map[string]interface{}{}, body, err
+	}
+	front, err = YAMLHandler(f)
+	if err != nil {
+		return nil, "", err
+	}
+	return front, body, nil
+}
+
+// YAMLToJSON parses the input and extract YAML frontmatter as []byte containing JSON
+func (m *Matter) YAMLToJSON(input io.Reader) (front []byte, body string, err error) {
+	f, body, err := m.splitFront(input)
+	if err != nil {
+		return []byte{}, body, err
+	}
+	front, err = yaml.YAMLToJSON([]byte(f))
+	if err != nil {
+		return nil, "", err
+	}
+	return front, body, nil
 }
 
 func sniffDelim(input []byte) (string, error) {
@@ -84,14 +91,17 @@ func (m *Matter) splitFront(input io.Reader) (front, body string, err error) {
 	n := 0
 	for s.Scan() {
 		if n == 0 {
-			rst[0] = s.Text()
+			rst[0] = strings.TrimSpace(s.Text()[3:])
 		} else if n == 1 {
 			rst[1] = s.Text()
 		}
 		n++
 	}
 	if err = s.Err(); err != nil {
-		return
+		return "", "", err
+	}
+	if len(rst[0]) < 3 {
+		return rst[0], rst[1], ErrIsEmpty
 	}
 	return rst[0], rst[1], nil
 }
@@ -105,7 +115,7 @@ func (m *Matter) split(data []byte, atEOF bool) (advance int, token []byte, err 
 	if err != nil {
 		return 0, nil, err
 	}
-	if _, ok := m.handlers[delim]; !ok {
+	if delim != m.Delim {
 		return 0, nil, ErrUnknownDelim
 	}
 	if x := bytes.Index(data, []byte(delim)); x >= 0 {
@@ -125,8 +135,7 @@ func dropSpace(d []byte) []byte {
 	return bytes.TrimSpace(d)
 }
 
-//JSONHandler implements HandlerFunc interface. It extracts front matter data from the given
-// string argument by interpreting it as a json string.
+//JSONHandler decodes JSON string into a go map[string]interface{}
 func JSONHandler(front string) (map[string]interface{}, error) {
 	var rst interface{}
 	err := json.Unmarshal([]byte(front), &rst)
@@ -140,6 +149,7 @@ func JSONHandler(front string) (map[string]interface{}, error) {
 func YAMLHandler(front string) (map[string]interface{}, error) {
 	out := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(front), out)
+
 	if err != nil {
 		return nil, err
 	}

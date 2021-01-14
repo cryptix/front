@@ -1,16 +1,17 @@
-# front [![Build Status](https://travis-ci.org/gernest/front.svg)](https://travis-ci.org/gernest/front) [![GoDoc](https://godoc.org/github.com/gernest/front?status.svg)](https://godoc.org/github.com/gernest/front)[![Coverage Status](https://coveralls.io/repos/gernest/front/badge.svg?branch=master&service=github)](https://coveralls.io/github/gernest/front?branch=master)
+# front
 
-extracts frontmatter from text files with ease.
+Extracts front matter.
 
+Modified fork of github.com/gernest/front
 ## Features
-* Custom delimiters. You are free to register any delimiter of your choice. Provided its a three character string. e.g `+++`,  `$$$`,  `---`,  `%%%`
-* Custom Handlers. Anything that implements `HandlerFunc` can be used to decode the values from the frontmatter text, you can see the `JSONHandler` for how to implement one.
-* Support YAML frontmatter
-* Support JSON frontmatter.
+* Custom delimiters (any three character string. e.g `+++`,  `$$$`,  `---`,  `%%%`)
+* Supports YAML frontmatter
+* Supports JSON frontmatter
+* JSON or Map output
 
 ## Installation
 
-	go get github.com/gernest/front
+	go get github.com/barshociaj/front
 
 ## How to use
 
@@ -21,7 +22,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gernest/front"
+	"github.com/barshociaj/front"
 )
 
 var txt = `+++
@@ -35,19 +36,40 @@ Over my dead body
 `
 
 func main() {
-	m := front.NewMatter()
-	m.Handle("+++", front.JSONHandler)
-	f, body, err := m.Parse(strings.NewReader(txt))
+	m := front.NewMatter("+++")
+	front, body, err := m.JSONToMap(strings.NewReader(txt))
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("The front matter is:\n%#v\n", f)
+	fmt.Printf("The front matter is:\n%#v\n", front)
 	fmt.Printf("The body is:\n%q\n", body)
 }
 ```
 
-Please see the tests formore details
+### `m.YAMLToJSON(fileReader)`
+
+Convert YAML front matter to JSON (`[]byte`)
+```go
+m := front.NewMatter("---")
+front, body, err := m.YAMLToJSON(fileReader)
+```
+
+### `m.YAMLToMap(fileReader)`
+
+Convert YAML front matter to a map (`map[string]interface{}`)
+```go
+m := front.NewMatter("---")
+front, body, err := m.YAMLToMap(fileReader)
+```
+
+### `m.JSONToMap(fileReader)`
+
+Convert JSON front matter to a map (`map[string]interface{}`)
+```go
+m := front.NewMatter("---")
+front, body, err := m.JSONToMap(fileReader)
+```
 
 ## Licence
 

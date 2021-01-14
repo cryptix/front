@@ -11,13 +11,12 @@ func TestMatter(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	m := NewMatter()
-	m.Handle("+++", JSONHandler)
+	m := NewMatter("+++")
 	b, err := ioutil.ReadFile("testdata/front/json.md")
 	if err != nil {
 		t.Error(err)
 	}
-	front, body, err := m.Parse(bytes.NewReader(b))
+	front, body, err := m.JSONToMap(bytes.NewReader(b))
 	if err != nil {
 		t.Error(err)
 	}
@@ -49,9 +48,8 @@ func TestEmptyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMatter()
-	m.Handle("+++", JSONHandler)
-	front, body, err := m.Parse(bytes.NewReader(data))
+	m := NewMatter("+++")
+	front, body, err := m.JSONToMap(bytes.NewReader(data))
 	if err != nil {
 		t.Error(err)
 	}
