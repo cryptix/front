@@ -13,11 +13,7 @@ import (
 
 var (
 	//ErrIsEmpty is an error indicating no front matter was found
-	ErrIsEmpty = errors.New("front: an empty file")
-
-	//ErrUnknownDelim is returned when the delimiters are not known by the
-	//FrontMatter implementation.
-	ErrUnknownDelim = errors.New("front: unknown delim")
+	ErrIsEmpty = errors.New("front: no front matter found")
 )
 
 //Matter is all what matters here.
@@ -86,24 +82,26 @@ func (m *Matter) splitFront(input io.Reader) (front, body string, err error) {
 	// Necessary so we can handle larger than default 4096b buffer
 	s.Buffer(buf, bufsize)
 
-	rst := make([]string, 2)
+	var bodyBuilder strings.Builder
 	s.Split(m.split)
 	n := 0
 	for s.Scan() {
-		if n == 0 {
-			rst[0] = strings.TrimSpace(s.Text()[3:])
-		} else if n == 1 {
-			rst[1] = s.Text()
+		text := s.Text()
+		hasDelim := strings.HasPrefix(text, m.Delim)
+		if n == 0 && hasDelim {
+			front = strings.TrimSpace(text[3:])
+		} else if n == 1 && hasDelim {
+			bodyBuilder.WriteString(text[3:])
+		} else {
+			bodyBuilder.WriteString(text)
 		}
 		n++
 	}
-	if err = s.Err(); err != nil {
-		return "", "", err
+	body = strings.TrimSpace(bodyBuilder.String())
+	if len(front) < 3 {
+		return front, body, ErrIsEmpty
 	}
-	if len(rst[0]) < 3 {
-		return rst[0], rst[1], ErrIsEmpty
-	}
-	return rst[0], rst[1], nil
+	return front, body, nil
 }
 
 //split implements bufio.SplitFunc for spliting front matter from the body text.
@@ -112,18 +110,15 @@ func (m *Matter) split(data []byte, atEOF bool) (advance int, token []byte, err 
 		return 0, nil, nil
 	}
 	delim, err := sniffDelim(data)
-	if err != nil {
-		return 0, nil, err
-	}
-	if delim != m.Delim {
-		return 0, nil, ErrUnknownDelim
+	if err != nil || delim != m.Delim {
+		return len(data), data, nil
 	}
 	if x := bytes.Index(data, []byte(delim)); x >= 0 {
 		// check the next delim index
 		if next := bytes.Index(data[x+len(delim):], []byte(delim)); next > 0 {
-			return next + len(delim), dropSpace(data[:next+len(delim)]), nil
+			return next + len(delim), data[:next+len(delim)], nil
 		}
-		return len(data), dropSpace(data[x+len(delim):]), nil
+		return len(data), data, nil
 	}
 	if atEOF {
 		return len(data), data, nil
@@ -148,8 +143,7 @@ func JSONHandler(front string) (map[string]interface{}, error) {
 //YAMLHandler decodes yaml string into a go map[string]interface{}
 func YAMLHandler(front string) (map[string]interface{}, error) {
 	out := make(map[string]interface{})
-	err := yaml.Unmarshal([]byte(front), out)
-
+	err := yaml.Unmarshal([]byte(front), &out)
 	if err != nil {
 		return nil, err
 	}

@@ -49,14 +49,28 @@ func TestEmptyFile(t *testing.T) {
 	}
 
 	m := NewMatter("+++")
-	front, body, err := m.JSONToMap(bytes.NewReader(data))
-	if err != nil {
+	_, _, err = m.JSONToMap(bytes.NewReader(data))
+	if err != ErrIsEmpty {
 		t.Error(err)
 	}
+}
+
+func TestNoFrontFile(t *testing.T) {
+	data, err := ioutil.ReadFile("testdata/front/no-front.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMatter("+++")
+	front, body, err := m.JSONToMap(bytes.NewReader(data))
 	if len(front) != 0 {
 		t.Fatal("front was not empty")
 	}
-	if len(body) != 0 {
-		t.Fatal("body was not empty")
+	bodyData, err := ioutil.ReadFile("testdata/front/body.md")
+	if err != nil {
+		t.Error(err)
+	}
+	if body != string(bodyData) {
+		t.Errorf("expected %s got %s", string(bodyData), body)
 	}
 }

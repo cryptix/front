@@ -8,6 +8,7 @@ Modified fork of github.com/gernest/front
 * Supports YAML frontmatter
 * Supports JSON frontmatter
 * JSON or Map output
+* Supports additional delimiters in the body
 
 ## Installation
 
