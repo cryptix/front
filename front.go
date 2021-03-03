@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	//ErrIsEmpty is an error indicating no front matter was found
-	ErrIsEmpty = errors.New("front: no front matter found")
+	//ErrNoFront is an error indicating no front matter was found
+	ErrNoFront = errors.New("front: no front matter found")
 )
 
 //Matter is all what matters here.
@@ -69,7 +69,7 @@ func (m *Matter) YAMLToJSON(input io.Reader) (front []byte, body string, err err
 
 func sniffDelim(input []byte) (string, error) {
 	if len(input) < 4 {
-		return "", ErrIsEmpty
+		return "", ErrNoFront
 	}
 	return string(input[:3]), nil
 }
@@ -99,7 +99,7 @@ func (m *Matter) splitFront(input io.Reader) (front, body string, err error) {
 	}
 	body = strings.TrimSpace(bodyBuilder.String())
 	if len(front) < 3 {
-		return front, body, ErrIsEmpty
+		return front, body, ErrNoFront
 	}
 	return front, body, nil
 }

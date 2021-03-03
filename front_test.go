@@ -50,7 +50,7 @@ func TestEmptyFile(t *testing.T) {
 
 	m := NewMatter("+++")
 	_, _, err = m.JSONToMap(bytes.NewReader(data))
-	if err != ErrIsEmpty {
+	if err != ErrNoFront {
 		t.Error(err)
 	}
 }
