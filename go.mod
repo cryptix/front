@@ -1,8 +1,8 @@
-module github.com/barshociaj/front
+module github.com/cryptix/front
 
-go 1.13
+go 1.16
 
 require (
-	github.com/stretchr/testify v1.7.0 // indirect
+	github.com/stretchr/testify v1.7.0
 	sigs.k8s.io/yaml v1.2.0
 )
