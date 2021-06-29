@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"io/ioutil"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMatter(t *testing.T) {
@@ -72,5 +74,32 @@ func TestNoFrontFile(t *testing.T) {
 	}
 	if body != string(bodyData) {
 		t.Errorf("expected %s got %s", string(bodyData), body)
+	}
+}
+
+func TestMultipleDelimiters(t *testing.T) {
+	bodyData, err := ioutil.ReadFile("testdata/multi/body.md")
+	if err != nil {
+		t.Error(err)
+	}
+
+	wantBody := bytes.TrimSpace(bodyData)
+
+	m := NewMatter("---")
+
+	b, err := ioutil.ReadFile("testdata/multi/yaml.md")
+	if err != nil {
+		t.Error(err)
+	}
+
+	front, body, err := m.YAMLToMap(bytes.NewReader(b))
+	if err != nil {
+		t.Error(err)
+	}
+
+	assert.Equal(t, string(wantBody), body)
+
+	if _, ok := front["test"]; !ok {
+		t.Error("expected front matter to contain test got nil instead")
 	}
 }
