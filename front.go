@@ -7,8 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"sigs.k8s.io/yaml"
 	"strings"
+
+	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -34,11 +35,23 @@ func (m *Matter) JSONToMap(input io.Reader) (front map[string]interface{}, body 
 	if err != nil {
 		return map[string]interface{}{}, body, err
 	}
-	front, err = JSONHandler(f)
+	front, err = JSONToMap(f)
 	if err != nil {
 		return nil, "", err
 	}
 	return front, body, nil
+}
+
+func (m *Matter) JSONViaPointer(input io.Reader, front interface{}) (body string, err error) {
+	f, body, err := m.splitFront(input)
+	if err != nil {
+		return body, err
+	}
+	err = JSONViaPointer(f, front)
+	if err != nil {
+		return "", err
+	}
+	return body, nil
 }
 
 // YAMLToMap parses the input and extract YAML frontmatter as map[string]interface{}
@@ -130,14 +143,22 @@ func dropSpace(d []byte) []byte {
 	return bytes.TrimSpace(d)
 }
 
-//JSONHandler decodes JSON string into a go map[string]interface{}
-func JSONHandler(front string) (map[string]interface{}, error) {
+//JSONToMap decodes JSON string into a go map[string]interface{}
+func JSONToMap(front string) (map[string]interface{}, error) {
 	var rst interface{}
 	err := json.Unmarshal([]byte(front), &rst)
 	if err != nil {
 		return nil, err
 	}
 	return rst.(map[string]interface{}), nil
+}
+
+func JSONViaPointer(front string, rst interface{}) error {
+	err := json.Unmarshal([]byte(front), rst)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 //YAMLHandler decodes yaml string into a go map[string]interface{}
